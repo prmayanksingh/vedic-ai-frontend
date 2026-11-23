@@ -1,8 +1,22 @@
 export type ServerStatus = "waking" | "online" | "error";
 
-export interface ChatMessages {
-    role: "user" | "assistant";
-    content: string;
+export interface ToolCallTrace {
+    toolName: string,
+    input: Record<string, unknown>
+}
+
+export interface ChatMessage {
+    role: "user" | "assistant",
+    content: string,
+    stepsCount?: number,
+    toolCalls?: ToolCallTrace[],
+}
+
+export interface AgentChatResponse {
+    success: boolean,
+    reply: string,
+    stepsCount: number,
+    toolCalls: ToolCallTrace[],
 }
 
 export interface Ritual {
@@ -36,7 +50,7 @@ export interface Booking {
     panditId: { _id: string, name: string } | string,
 }
 
-export interface OverviewData{
+export interface OverviewData {
     rituals: Ritual[],
     pandits: Pandit[],
     bookings: Booking[]
