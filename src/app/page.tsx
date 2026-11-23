@@ -1,5 +1,5 @@
 'use client'
-import { checkBackendHealth, fetchOverview } from '@/lib/apiClient';
+import { checkBackendHealth, fetchOverview, sendChatMessage } from '@/lib/apiClient';
 import { ChatMessage, OverviewData, ServerStatus } from '@/types/api'
 import { useEffect, useState } from 'react';
 
@@ -15,6 +15,53 @@ export default function HomePage() {
   const [serverStatus, setServerStatus] = useState<ServerStatus>("waking");
   const [overview, setOverview] = useState<OverviewData | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [messages, setMessages] = useState<ChatMessage[]>(INITIAL_MESSAGES);
+  const [input, setInput] = useState<string>("");
+  const [isSending, setIsSending] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
+  const [activeTab, setActiveTab] = useState("bookings");
+
+  const handleSendMessage = async (promptText?: string) => {
+    const text = (promptText ?? input).trim();
+
+    if (!text || isSending || serverStatus !== "online") {
+      return;
+    }
+
+    const userMessage: ChatMessage = {
+      role: "user",
+      content: text,
+    };
+
+    const updatedMessages = [...messages, userMessage];
+    setMessages(updatedMessages);
+    setError(null);
+    setIsSending(true);
+
+    if (!promptText) {
+      setInput("");
+    }
+
+    try {
+      const response = await sendChatMessage(updatedMessages);
+      const assistantMessage: ChatMessage = {
+        role: "assistant",
+        content: response.reply,
+        stepsCount: response.stepsCount,
+        toolCalls: response.toolCalls
+      };
+
+      setMessages((prev) => [...prev, assistantMessage]);
+
+      const overviewData = await fetchOverview();
+      setOverview(overviewData);
+
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to get response from agent");
+    } finally {
+      setIsSending(false);
+    }
+  }
 
   useEffect(() => {
 
