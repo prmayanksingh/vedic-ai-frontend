@@ -1,5 +1,5 @@
 'use client'
-import { checkBackendHealth, fetchOverview, sendChatMessage } from '@/lib/apiClient';
+import { checkBackendHealth, fetchOverview, resetDemoData, sendChatMessage } from '@/lib/apiClient';
 import { ChatMessage, OverviewData, ServerStatus } from '@/types/api'
 import { useEffect, useState } from 'react';
 
@@ -19,7 +19,7 @@ export default function HomePage() {
   const [input, setInput] = useState<string>("");
   const [isSending, setIsSending] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
-  const [activeTab, setActiveTab] = useState("bookings");
+  const [activeTab, setActiveTab] = useState<"bookings" | "rituals" | "pandits">("bookings");
 
   const handleSendMessage = async (promptText?: string) => {
     const text = (promptText ?? input).trim();
@@ -63,6 +63,27 @@ export default function HomePage() {
     }
   }
 
+  const handleResetDemo = async () => {
+    if (isResetting || serverStatus !== "online") {
+      return;
+    }
+
+    setIsResetting(true);
+    setError(null);
+
+    try {
+      await resetDemoData();
+      setMessages(INITIAL_MESSAGES);
+      const overviewData = await fetchOverview();
+      setOverview(overviewData);
+
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to reset demo data.");
+    } finally {
+      setIsResetting(false);
+    }
+  }
+
   useEffect(() => {
 
     let isMounted = true;
@@ -84,7 +105,7 @@ export default function HomePage() {
         const overviewData = await fetchOverview();
         if (isMounted) setOverview(overviewData);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to load overview");
+        if (isMounted) setError(err instanceof Error ? err.message : "Failed to load overview");
       }
     }
 
