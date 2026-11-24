@@ -15,6 +15,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { ChatMessage, ServerStatus } from '@/types/api';
+import MarkdownMessage from "./MarkdownMessage";
 
 interface ChatPanelProps {
   messages: ChatMessage[];
@@ -26,7 +27,27 @@ interface ChatPanelProps {
   onSend: (promptText?: string) => void;
 }
 
-const QUICK_PROMPTS: { label: string; prompt: string; icon: LucideIcon }[] = [
+const LOADING_STEPS = ["Thinking...", "Running agent tools...", "Finalizing response..."] as const;
+
+/** Local calendar date `days` from today as YYYY-MM-DD (the format the booking API stores). */
+const isoDateFromToday = (days: number) => {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+};
+
+interface QuickPrompt {
+  label: string;
+  /** Short text shown on the card/chip. */
+  prompt: string;
+  icon: LucideIcon;
+  /** Full message actually sent. Built at click time so dates are always in the future. */
+  build?: () => string;
+}
+
+// Sample values match the seeded demo data (Gurugram/Noida pandits, booking BK-1001).
+const QUICK_PROMPTS: QuickPrompt[] = [
   {
     label: "Explore Rigveda hymns",
     prompt: "Explain the first hymn of the Rigveda (Agni Sukta) and its meaning",
@@ -34,18 +55,33 @@ const QUICK_PROMPTS: { label: string; prompt: string; icon: LucideIcon }[] = [
   },
   {
     label: "Check Pandit availability",
-    prompt: "Which Pandits are available in Varanasi for a Griha Pravesh puja?",
+    prompt: "Which Pandits are available in Gurugram next Saturday morning for a Griha Pravesh Havan?",
     icon: UserSearch,
+    build: () =>
+      `Which Pandits are available in Gurugram on ${isoDateFromToday(5)} in the morning slot for a Griha Pravesh Havan?`,
   },
   {
     label: "Book a ritual",
-    prompt: "Book a Satyanarayan Puja for this Sunday morning",
+    prompt: "Book Satyanarayan Katha & Pooja in Gurugram for Rohan Verma, evening slot, with samagri kit",
     icon: CalendarPlus,
+    build: () =>
+      [
+        "Please book a Satyanarayan Katha & Pooja with these details:",
+        "- Devotee name: Rohan Verma",
+        "- Phone: 9876543210",
+        "- City: Gurugram",
+        "- Address: Flat 1204, Tower B, Sector 54, Gurugram, Haryana 122011",
+        `- Date: ${isoDateFromToday(7)}`,
+        "- Time slot: evening",
+        "- Include samagri kit: yes",
+      ].join("\n"),
   },
   {
     label: "Reschedule or cancel",
-    prompt: "I want to reschedule or cancel my existing booking",
+    prompt: "Reschedule booking BK-1001 to the afternoon slot next week",
     icon: CalendarClock,
+    build: () =>
+      `Please reschedule my booking BK-1001 (phone 9811000001) to ${isoDateFromToday(10)} in the afternoon slot. If that isn't possible, tell me the options to cancel it instead.`,
   },
 ];
 
@@ -69,6 +105,19 @@ export default function ChatPanel({
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [dismissedError, setDismissedError] = useState<string | null>(null);
+  const [loadingStep, setLoadingStep] = useState(0);
+
+  // Advance the loading status every 4s while a reply is pending; reset once it arrives.
+  useEffect(() => {
+    if (!isSending) return;
+    const id = setInterval(() => {
+      setLoadingStep((step) => Math.min(step + 1, LOADING_STEPS.length - 1));
+    }, 4000);
+    return () => {
+      clearInterval(id);
+      setLoadingStep(0);
+    };
+  }, [isSending]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
@@ -116,11 +165,11 @@ export default function ChatPanel({
             </div>
 
             <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
-              {QUICK_PROMPTS.map(({ label, prompt, icon: Icon }) => (
+              {QUICK_PROMPTS.map(({ label, prompt, icon: Icon, build }) => (
                 <button
                   key={label}
                   type="button"
-                  onClick={() => onSend(prompt)}
+                  onClick={() => onSend(build?.() ?? prompt)}
                   disabled={!canSend}
                   className="animate-fade-up flex flex-col items-start gap-2 rounded-2xl border border-white/8 bg-[#1e1f20] p-3 text-left sm:gap-3 sm:p-4 transition-colors hover:bg-[#282a2c] disabled:cursor-not-allowed disabled:hover:bg-[#1e1f20]"
                 >
@@ -154,9 +203,7 @@ export default function ChatPanel({
                 <div key={idx} className="animate-fade-up flex gap-3 sm:gap-4">
                   <AssistantMark />
                   <div className="min-w-0 flex-1 pt-0.5">
-                    <div className="whitespace-pre-wrap wrap-break-word text-[15px] leading-7 text-[#e3e3e3]">
-                      {msg.content}
-                    </div>
+                    <MarkdownMessage content={msg.content} />
 
                     {(toolCalls.length > 0 || hasSteps) && (
                       <details className="group mt-3">
@@ -201,7 +248,15 @@ export default function ChatPanel({
             {isSending && (
               <div className="animate-fade-up flex items-center gap-3 sm:gap-4">
                 <AssistantMark spinning />
-                <span className="text-sm text-[#9aa0a6]">Thinking…</span>
+                <div className="flex items-center gap-2.5" role="status" aria-live="polite">
+                  <span className="relative flex h-2 w-2">
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400/60" />
+                    <span className="relative inline-flex h-2 w-2 rounded-full bg-amber-400" />
+                  </span>
+                  <span key={loadingStep} className="animate-fade-up text-sm text-[#9aa0a6]">
+                    {LOADING_STEPS[loadingStep]}
+                  </span>
+                </div>
               </div>
             )}
 
@@ -233,11 +288,11 @@ export default function ChatPanel({
 
           {!isHero && (
             <div className="no-scrollbar -mx-1 flex gap-2 overflow-x-auto px-1">
-              {QUICK_PROMPTS.map(({ label, prompt, icon: Icon }) => (
+              {QUICK_PROMPTS.map(({ label, prompt, icon: Icon, build }) => (
                 <button
                   key={label}
                   type="button"
-                  onClick={() => onSend(prompt)}
+                  onClick={() => onSend(build?.() ?? prompt)}
                   disabled={!canSend}
                   title={prompt}
                   className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-white/8 bg-[#1e1f20] px-3 py-1.5 text-xs text-[#e3e3e3] transition-colors hover:bg-[#282a2c] disabled:cursor-not-allowed disabled:text-[#9aa0a6] disabled:hover:bg-[#1e1f20]"
