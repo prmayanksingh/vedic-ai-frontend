@@ -2,6 +2,10 @@
 import { checkBackendHealth, fetchOverview, resetDemoData, sendChatMessage } from '@/lib/apiClient';
 import { ChatMessage, OverviewData, ServerStatus } from '@/types/api'
 import { useEffect, useState } from 'react';
+import AppShell from '@/components/AppShell';
+import Header from '@/components/Header';
+import ChatPanel from '@/components/ChatPanel';
+import DatabaseSidebar from '@/components/DatabaseSidebar';
 
 const INITIAL_MESSAGES: ChatMessage[] = [
   {
@@ -119,8 +123,28 @@ export default function HomePage() {
 
 
   return (
-    <main>
-      <p>Server Status: {serverStatus}</p>
-    </main>
+    <AppShell
+      header={<Header serverStatus={serverStatus} isResetting={isResetting} onReset={handleResetDemo} />}
+      chat={
+        <ChatPanel
+          messages={messages}
+          input={input}
+          isSending={isSending}
+          serverStatus={serverStatus}
+          error={error}
+          onInputChange={setInput}
+          onSend={handleSendMessage}
+        />
+      }
+      sidebar={
+        <DatabaseSidebar
+          overview={overview}
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          serverStatus={serverStatus}
+        />
+      }
+      databaseBadge={overview?.bookings.length ?? null}
+    />
   );
 }
