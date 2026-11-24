@@ -25,6 +25,7 @@ interface ChatPanelProps {
   error: string | null;
   onInputChange: (val: string) => void;
   onSend: (promptText?: string) => void;
+  onResetDemo: () => void;
 }
 
 const LOADING_STEPS = ["Thinking...", "Running agent tools...", "Finalizing response..."] as const;
@@ -101,6 +102,7 @@ export default function ChatPanel({
   error,
   onInputChange,
   onSend,
+  onResetDemo,
 }: ChatPanelProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -154,13 +156,30 @@ export default function ChatPanel({
         {isHero ? (
           /* ── Hero greeting ── */
           <div className="mx-auto flex min-h-full w-full max-w-2xl flex-col justify-center px-4 pb-4 pt-6 sm:px-6 2xl:max-w-3xl">
+            {/* Sandbox notice — placed first so it reads as a system notice, not a chat message */}
             <div className="animate-fade-up mb-5">
-              <div className="mb-3 flex h-10 w-10 items-center sm:mb-4 sm:h-11 sm:w-11 justify-center rounded-full border border-white/8 bg-[#1e1f20]">
-                <span className="text-xl leading-none text-amber-400" aria-hidden>
-                  ॐ
+              <p
+                role="note"
+                className="inline-flex flex-wrap items-center gap-x-2 gap-y-0.5 rounded-full border border-amber-500/20 bg-amber-500/6 px-3.5 py-1.5 text-xs text-neutral-400"
+              >
+                <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-amber-400" aria-hidden />
+                <span>
+                  Shared sandbox DB —{" "}
+                  <button
+                    type="button"
+                    onClick={onResetDemo}
+                    disabled={serverStatus !== "online"}
+                    className="font-medium text-amber-400 hover:underline disabled:cursor-not-allowed disabled:no-underline disabled:opacity-60"
+                  >
+                    Reset Demo
+                  </button>{" "}
+                  recommended for a fresh start.
                 </span>
-              </div>
-              <h2 className="text-xl font-medium sm:text-2xl tracking-tight text-[#e3e3e3]">Namaste. How can I guide you today?</h2>
+              </p>
+            </div>
+
+            <div className="animate-fade-up mb-5">
+              <h2 className="text-xl font-medium tracking-tight text-[#e3e3e3] sm:text-2xl">How can I guide you today?</h2>
               <p className="mt-2 max-w-xl text-sm leading-relaxed sm:text-[15px] text-[#9aa0a6]">{messages[0].content}</p>
             </div>
 
@@ -176,7 +195,7 @@ export default function ChatPanel({
                   <Icon className="h-4 w-4 text-amber-400" />
                   <span>
                     <span className="block text-[13px] font-medium leading-snug text-[#e3e3e3] sm:text-sm">{label}</span>
-                    <span className="mt-1 line-clamp-2 hidden text-[13px] sm:block leading-snug text-[#9aa0a6]">{prompt}</span>
+                    <span className="mt-1 hidden text-[13px] leading-snug text-[#9aa0a6] sm:line-clamp-2">{prompt}</span>
                   </span>
                 </button>
               ))}

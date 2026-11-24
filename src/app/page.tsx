@@ -11,9 +11,11 @@ const INITIAL_MESSAGES: ChatMessage[] = [
   {
     role: "assistant",
     content:
-      "Namaste! I am the Vedic AI . Ask me about Rigveda hymns, check Pandit availability, or book, reschedule, and cancel a ritual.",
+      "Namaste! I am Vedic AI. Ask me about Rigveda hymns, check Pandit availability, or book, reschedule, and cancel a ritual.",
   },
 ];
+
+const CHAT_HISTORY_KEY = "vedic_ai_chat_history";
 
 export default function HomePage() {
   const [serverStatus, setServerStatus] = useState<ServerStatus>("waking");
@@ -24,6 +26,7 @@ export default function HomePage() {
   const [isSending, setIsSending] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
   const [activeTab, setActiveTab] = useState<"bookings" | "rituals" | "pandits">("bookings");
+  const [hasLoadedHistory, setHasLoadedHistory] = useState(false);
 
   const handleSendMessage = async (promptText?: string) => {
     const text = (promptText ?? input).trim();
@@ -77,6 +80,7 @@ export default function HomePage() {
 
     try {
       await resetDemoData();
+      localStorage.removeItem(CHAT_HISTORY_KEY);
       setMessages(INITIAL_MESSAGES);
       const overviewData = await fetchOverview();
       setOverview(overviewData);
@@ -88,8 +92,33 @@ export default function HomePage() {
     }
   }
 
+  // load saved messages on mount
   useEffect(() => {
+    let saved: ChatMessage[] | null = null;
+    try {
+      const raw = localStorage.getItem(CHAT_HISTORY_KEY);
+      const parsed: unknown = raw ? JSON.parse(raw) : null;
+      if (Array.isArray(parsed) && parsed.length > 0) saved = parsed as ChatMessage[];
+    } catch {
+    }
 
+    queueMicrotask(() => {
+      if (saved) setMessages(saved);
+      setHasLoadedHistory(true);
+    });
+  }, []);
+
+  // save messages whenever they change (after the saved history has been restored)
+  useEffect(() => {
+    if (!hasLoadedHistory) return;
+    try {
+      localStorage.setItem(CHAT_HISTORY_KEY, JSON.stringify(messages));
+    } catch {
+    }
+  }, [messages, hasLoadedHistory])
+
+  // checks backend health and fetch overview data
+  useEffect(() => {
     let isMounted = true;
 
     async function init() {
@@ -134,6 +163,7 @@ export default function HomePage() {
           error={error}
           onInputChange={setInput}
           onSend={handleSendMessage}
+          onResetDemo={handleResetDemo}
         />
       }
       sidebar={

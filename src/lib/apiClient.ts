@@ -43,7 +43,7 @@ export async function resetDemoData(): Promise<void> {
     const res = await fetch(`${API_URL}/api/admin/reset-demo`, {
         method: "POST",
     });
-
+    
     if (!res.ok) {
         throw new Error(`Reset failed (${res.status})`);
     }
