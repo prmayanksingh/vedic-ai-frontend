@@ -140,7 +140,7 @@ export default function ChatPanel({
               if (msg.role === "user") {
                 return (
                   <div key={idx} className="animate-fade-up flex justify-end">
-                    <div className="max-w-[85%] whitespace-pre-wrap break-words rounded-3xl rounded-br-lg bg-[#282a2c] px-4 py-2.5 text-[15px] leading-relaxed text-[#e3e3e3] sm:max-w-[75%]">
+                    <div className="max-w-[85%] whitespace-pre-wrap wrap-break-word rounded-3xl rounded-br-lg bg-[#282a2c] px-4 py-2.5 text-[15px] leading-relaxed text-[#e3e3e3] sm:max-w-[75%]">
                       {msg.content}
                     </div>
                   </div>
@@ -154,7 +154,7 @@ export default function ChatPanel({
                 <div key={idx} className="animate-fade-up flex gap-3 sm:gap-4">
                   <AssistantMark />
                   <div className="min-w-0 flex-1 pt-0.5">
-                    <div className="whitespace-pre-wrap break-words text-[15px] leading-7 text-[#e3e3e3]">
+                    <div className="whitespace-pre-wrap wrap-break-word text-[15px] leading-7 text-[#e3e3e3]">
                       {msg.content}
                     </div>
 
@@ -270,7 +270,7 @@ export default function ChatPanel({
                     ? "Waking up the server…"
                     : "Server unavailable"
               }
-              className="max-h-[200px] min-h-[24px] flex-1 resize-none self-center bg-transparent py-1.5 text-base leading-6 text-[#e3e3e3] sm:text-[15px] placeholder:text-[#9aa0a6] focus:outline-none disabled:cursor-not-allowed"
+              className="max-h-50 min-h-6 flex-1 resize-none self-center bg-transparent py-1.5 text-base leading-6 text-[#e3e3e3] sm:text-[15px] placeholder:text-[#9aa0a6] focus:outline-none disabled:cursor-not-allowed"
             />
             <button
               type="submit"
@@ -278,7 +278,7 @@ export default function ChatPanel({
               aria-label="Send message"
               className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-amber-400 text-[#131314] transition-colors hover:bg-amber-300 disabled:cursor-not-allowed disabled:bg-[#282a2c] disabled:text-[#9aa0a6]"
             >
-              {isSending ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <ArrowUp className="h-[18px] w-[18px]" />}
+              {isSending ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <ArrowUp className="h-4.5 w-4.5" />}
             </button>
           </form>
 

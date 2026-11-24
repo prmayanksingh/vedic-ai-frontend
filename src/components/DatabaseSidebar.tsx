@@ -66,7 +66,7 @@ function EmptyState({ text }: { text: string }) {
   return (
     <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
       <Inbox className="h-6 w-6 text-[#9aa0a6]" />
-      <p className="max-w-[15rem] text-sm text-[#9aa0a6]">{text}</p>
+      <p className="max-w-60 text-sm text-[#9aa0a6]">{text}</p>
     </div>
   );
 }
