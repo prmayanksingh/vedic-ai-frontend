@@ -1,6 +1,6 @@
 'use client'
 import type { ReactNode } from 'react';
-import { BookOpen, CalendarDays, Clock, Database, Hourglass, Inbox, MapPin, UserRound, Users, type LucideIcon } from 'lucide-react';
+import { BookOpen, CalendarDays, Clock, Database, Hourglass, Inbox, Languages, MapPin, Package, UserRound, Users, type LucideIcon } from 'lucide-react';
 import { Booking, OverviewData, ServerStatus } from '@/types/api';
 
 type Tab = "bookings" | "rituals" | "pandits";
@@ -26,27 +26,46 @@ const BOOKING_STATUS: Record<Booking["status"], { label: string; dot: string; te
 
 const CARD = "rounded-xl border border-white/8 bg-[#1e1f20] p-4 transition-colors hover:border-white/12";
 
-const refName = (ref: { name: string } | string) => (typeof ref === "string" ? ref : ref.name);
+/** Resolve a display name from a denormalized name, a populated ref, or a lookup by id — never a raw ObjectId. */
+const resolveName = (
+  denormalized: string | undefined,
+  ref: { _id: string; name: string } | string | undefined,
+  lookup: Map<string, string>,
+  fallback: string,
+) => {
+  if (denormalized) return denormalized;
+  if (ref && typeof ref === "object") return ref.name;
+  if (typeof ref === "string") return lookup.get(ref) ?? fallback;
+  return fallback;
+};
 
-const formatDate = (value: string) => {
-  const d = new Date(value);
+const titleCase = (s?: string) => (s ? s.replace(/\b\w/g, (c) => c.toUpperCase()) : "");
+
+const formatDate = (value?: string) => {
+  if (!value) return "—";
+  // Treat plain "YYYY-MM-DD" as a calendar date (avoids timezone shifting it a day).
+  const d = /^\d{4}-\d{2}-\d{2}$/.test(value) ? new Date(`${value}T00:00:00`) : new Date(value);
   return Number.isNaN(d.getTime())
     ? value
     : d.toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short", year: "numeric" });
 };
 
-const formatINR = (amount: number) =>
-  amount.toLocaleString("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 });
+const formatINR = (amount?: number) =>
+  typeof amount === "number" && Number.isFinite(amount)
+    ? amount.toLocaleString("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 })
+    : "—";
 
-const formatDuration = (minutes: number) => {
+const formatDuration = (minutes?: number) => {
+  if (typeof minutes !== "number" || !Number.isFinite(minutes)) return "—";
   if (minutes < 60) return `${minutes} min`;
   const h = Math.floor(minutes / 60);
   const m = minutes % 60;
   return m ? `${h}h ${m}m` : `${h}h`;
 };
 
-const initials = (name: string) =>
+const initials = (name = "") =>
   name
+    .replace(/^(acharya|pt\.?|pandit)\s+/i, "")
     .replace(/^(pt\.?|pandit)\s+/i, "")
     .split(/\s+/)
     .slice(0, 2)
@@ -103,36 +122,66 @@ export default function DatabaseSidebar({ overview, activeTab, onTabChange, serv
 
     if (activeTab === "bookings") {
       if (overview.bookings.length === 0) return <EmptyState text="No bookings yet. Ask the agent to book a ritual." />;
+      const ritualNames = new Map(overview.rituals.map((r) => [r._id, r.name]));
+      const panditNames = new Map(overview.pandits.map((p) => [p._id, p.name]));
       return (
         <ul className="space-y-2.5">
           {overview.bookings.map((b) => {
-            const status = BOOKING_STATUS[b.status];
+            const status = BOOKING_STATUS[b.status] ?? BOOKING_STATUS.CONFIRMED;
+            const ritual = resolveName(b.ritualName, b.ritualId, ritualNames, "Ritual");
+            const pandit = resolveName(b.panditName, b.panditId, panditNames, "Pandit to be assigned");
             return (
               <li key={b._id} className={`animate-fade-up ${CARD}`}>
-                <div className="flex items-center justify-between gap-2">
-                  <span className="font-mono text-xs text-[#9aa0a6]">{b.referenceCode}</span>
-                  <span className={`inline-flex items-center gap-1.5 text-xs font-medium ${status.text}`}>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p
+                      className={`truncate text-[15px] font-medium text-[#e3e3e3] ${
+                        b.status === "CANCELLED" ? "line-through decoration-white/30" : ""
+                      }`}
+                    >
+                      {ritual}
+                    </p>
+                    <p className="mt-0.5 truncate text-xs text-[#9aa0a6]">
+                      {b.devoteeName ? `for ${b.devoteeName}` : "Devotee"}
+                      {b.bookingCode && (
+                        <>
+                          <span className="mx-1.5 text-white/20">·</span>
+                          <span className="font-mono">{b.bookingCode}</span>
+                        </>
+                      )}
+                    </p>
+                  </div>
+                  <span className={`inline-flex shrink-0 items-center gap-1.5 text-xs font-medium ${status.text}`}>
                     <span className={`h-1.5 w-1.5 rounded-full ${status.dot}`} />
                     {status.label}
                   </span>
                 </div>
-                <p
-                  className={`mt-2 text-[15px] font-medium text-[#e3e3e3] ${
-                    b.status === "CANCELLED" ? "line-through decoration-white/30" : ""
-                  }`}
-                >
-                  {refName(b.ritualId)}
-                </p>
-                <div className="mt-1">
-                  <Meta icon={UserRound}>
-                    {refName(b.panditId)} <span className="text-white/20">·</span> for {b.userName}
-                  </Meta>
+
+                <div className="mt-2.5">
+                  <Meta icon={UserRound}>{pandit}</Meta>
                 </div>
-                <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5 border-t border-white/8 pt-3">
+
+                <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 border-t border-white/8 pt-3">
                   <Meta icon={CalendarDays}>{formatDate(b.date)}</Meta>
-                  <Meta icon={Clock}>{b.timeSlot}</Meta>
-                  <Meta icon={MapPin}>{b.city}</Meta>
+                  <Meta icon={Clock}>{titleCase(b.timeSlot)}</Meta>
+                  <Meta icon={MapPin}>{titleCase(b.city)}</Meta>
+                  {typeof b.totalAmount === "number" && (
+                    <span className="ml-auto text-sm font-medium text-[#e3e3e3] tabular-nums">
+                      {formatINR(b.totalAmount)}
+                    </span>
+                  )}
                 </div>
+                {b.includeSamagriKit && (
+                  <span className="mt-2.5 inline-flex items-center gap-1.5 rounded-full bg-[#282a2c] px-2.5 py-0.5 text-[11px] text-[#e3e3e3]">
+                    <Package className="h-3 w-3 text-amber-400" />
+                    Samagri kit included
+                  </span>
+                )}
+                {b.status === "CANCELLED" && b.cancellationReason && (
+                  <p className="mt-2.5 rounded-lg bg-red-500/6 px-2.5 py-1.5 text-xs text-red-200/90">
+                    <span className="font-medium text-red-300">Reason:</span> {b.cancellationReason}
+                  </p>
+                )}
               </li>
             );
           })}
@@ -149,15 +198,24 @@ export default function DatabaseSidebar({ overview, activeTab, onTabChange, serv
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <p className="text-[15px] font-medium text-[#e3e3e3]">{r.name}</p>
-                  <p className="mt-0.5 text-xs text-[#9aa0a6]">{r.category}</p>
+                  {r.ritualType && <p className="mt-0.5 text-xs text-[#9aa0a6]">{titleCase(r.ritualType)}</p>}
                 </div>
-                <p className="shrink-0 text-sm font-medium text-[#e3e3e3] tabular-nums">{formatINR(r.dakshina)}</p>
+                <div className="shrink-0 text-right">
+                  <p className="text-sm font-medium text-[#e3e3e3] tabular-nums">{formatINR(r.baseDakshina)}</p>
+                  <p className="text-[11px] text-[#9aa0a6]">dakshina</p>
+                </div>
               </div>
               {r.description && (
                 <p className="mt-2 line-clamp-2 text-[13px] leading-relaxed text-[#9aa0a6]">{r.description}</p>
               )}
-              <div className="mt-3 border-t border-white/8 pt-3">
+              <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5 border-t border-white/8 pt-3">
                 <Meta icon={Hourglass}>{formatDuration(r.durationMinutes)}</Meta>
+                {typeof r.samagriKitPrice === "number" && (
+                  <Meta icon={Package}>
+                    Samagri kit {formatINR(r.samagriKitPrice)}
+                    {r.samagriItems?.length ? ` · ${r.samagriItems.length} items` : ""}
+                  </Meta>
+                )}
               </div>
             </li>
           ))}
@@ -168,32 +226,44 @@ export default function DatabaseSidebar({ overview, activeTab, onTabChange, serv
     if (overview.pandits.length === 0) return <EmptyState text="No pandits found." />;
     return (
       <ul className="space-y-2.5">
-        {overview.pandits.map((p) => (
-          <li key={p._id} className={`animate-fade-up ${CARD}`}>
-            <div className="flex items-center gap-3">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#282a2c] text-xs font-medium text-[#e3e3e3]">
-                {initials(p.name)}
+        {overview.pandits.map((p) => {
+          const available = p.isActive !== false;
+          return (
+            <li key={p._id} className={`animate-fade-up ${CARD}`}>
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#282a2c] text-xs font-medium text-[#e3e3e3]">
+                  {initials(p.name)}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-[15px] font-medium text-[#e3e3e3]">{p.name}</p>
+                  <p className="mt-0.5 inline-flex items-center gap-1.5 text-xs text-[#9aa0a6]">
+                    <span className={`h-1.5 w-1.5 rounded-full ${available ? "bg-emerald-400" : "bg-[#9aa0a6]"}`} />
+                    {available ? "Available" : "Unavailable"}
+                    <span className="text-white/20">·</span>
+                    {titleCase(p.city)}
+                  </p>
+                </div>
+                {typeof p.experienceYears === "number" && (
+                  <span className="shrink-0 text-xs text-[#9aa0a6] tabular-nums">{p.experienceYears} yrs</span>
+                )}
               </div>
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-[15px] font-medium text-[#e3e3e3]">{p.name}</p>
-                <p className="mt-0.5 inline-flex items-center gap-1.5 text-xs text-[#9aa0a6]">
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-                  Available in {p.city}
-                </p>
-              </div>
-              <span className="shrink-0 text-xs text-[#9aa0a6] tabular-nums">{p.experienceYears} yrs</span>
-            </div>
-            {p.specializations.length > 0 && (
-              <div className="mt-3 flex flex-wrap gap-1.5">
-                {p.specializations.map((s) => (
-                  <span key={s} className="rounded-full bg-[#282a2c] px-2.5 py-0.5 text-xs text-[#e3e3e3]">
-                    {s}
-                  </span>
-                ))}
-              </div>
-            )}
-          </li>
-        ))}
+              {(p.specializations?.length ?? 0) > 0 && (
+                <div className="mt-3 flex flex-wrap gap-1.5">
+                  {p.specializations.map((s) => (
+                    <span key={s} className="rounded-full bg-[#282a2c] px-2.5 py-0.5 text-xs text-[#e3e3e3]">
+                      {titleCase(s)}
+                    </span>
+                  ))}
+                </div>
+              )}
+              {(p.languages?.length ?? 0) > 0 && (
+                <div className="mt-2.5">
+                  <Meta icon={Languages}>{p.languages.join(", ")}</Meta>
+                </div>
+              )}
+            </li>
+          );
+        })}
       </ul>
     );
   };
