@@ -174,7 +174,6 @@ export default function HomePage() {
           serverStatus={serverStatus}
         />
       }
-      databaseBadge={overview?.bookings.length ?? null}
     />
   );
 }

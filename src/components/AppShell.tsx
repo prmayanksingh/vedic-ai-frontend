@@ -6,8 +6,6 @@ interface AppShellProps {
   header: ReactNode;
   chat: ReactNode;
   sidebar: ReactNode;
-  /** Optional badge shown on the mobile "Database" switcher (e.g. bookings count). */
-  databaseBadge?: number | null;
 }
 
 type MobileView = "chat" | "database";
@@ -18,12 +16,12 @@ type MobileView = "chat" | "database";
  * - <lg: one panel at a time with a slim switcher under the header. Both panels stay
  *   mounted so scroll position and input are preserved when switching.
  */
-export default function AppShell({ header, chat, sidebar, databaseBadge }: AppShellProps) {
+export default function AppShell({ header, chat, sidebar }: AppShellProps) {
   const [view, setView] = useState<MobileView>("chat");
 
-  const views: { id: MobileView; label: string; icon: LucideIcon; badge?: number | null }[] = [
+  const views: { id: MobileView; label: string; icon: LucideIcon }[] = [
     { id: "chat", label: "Chat", icon: MessageSquare },
-    { id: "database", label: "Live Database", icon: Database, badge: databaseBadge },
+    { id: "database", label: "Live Database", icon: Database },
   ];
 
   return (
@@ -32,7 +30,7 @@ export default function AppShell({ header, chat, sidebar, databaseBadge }: AppSh
 
       {/* Mobile / tablet switcher */}
       <nav className="flex shrink-0 border-b border-white/8 bg-[#131314] px-2 lg:hidden" role="tablist">
-        {views.map(({ id, label, icon: Icon, badge }) => {
+        {views.map(({ id, label, icon: Icon }) => {
           const active = view === id;
           return (
             <button
@@ -49,9 +47,6 @@ export default function AppShell({ header, chat, sidebar, databaseBadge }: AppSh
             >
               <Icon className={`h-4 w-4 ${active ? "text-amber-400" : ""}`} />
               {label}
-              {typeof badge === "number" && (
-                <span className="rounded-full bg-[#282a2c] px-1.5 text-[11px] tabular-nums text-[#e3e3e3]">{badge}</span>
-              )}
             </button>
           );
         })}
